@@ -18,18 +18,18 @@ public class LookupTable implements Table {
 	private List<String> columns;
 	private int degree;
 
-	// TODO: This constructor has 3 initialization errors.
 	public LookupTable(String name, List<String> columns) {
+		this.name = name;
+		this.columns = columns;
+		this.degree = columns.size();
 		clear();
 	}
 
-	// TODO: This method has 1 value error.
 	@Override
 	public void clear() {
-		rows = new Row[26];
+		rows = new Row[52];
 	}
 
-	// TODO: This helper method has 1 logic error.
 	private int indexOf(String key) {
 		if (key.length() < 1)
 			throw new IllegalArgumentException("Key must be at least 1 character");
@@ -37,16 +37,18 @@ public class LookupTable implements Table {
 		char c = key.charAt(0);
 		if (c >= 'a' && c <= 'z')
 			return c - 'a';
+		else if (c >= 'A' && c <= 'Z')
+			return c - 'A' +26;
 		else
 			throw new IllegalArgumentException("Key must start with a lowercase or uppercase letter");
 	}
 
-	// TODO: This method is missing 1 guard condition.
-	// TODO: This method has 1 assignment error.
 	@Override
 	public List<Object> put(String key, List<Object> fields) {
 		if (1 + fields.size() < degree)
 			throw new IllegalArgumentException("Row is too narrow");
+		if (1 + fields.size() > degree)
+			throw new IllegalArgumentException("Row is too wide");
 
 		int i = indexOf(key);
 
@@ -57,7 +59,7 @@ public class LookupTable implements Table {
 			rows[i] = make;
 			return old.fields();
 		}
-
+		rows[i] = make;
 		return null;
 	}
 
@@ -65,45 +67,45 @@ public class LookupTable implements Table {
 	@Override
 	public List<Object> get(String key) {
 		int i = indexOf(key);
-
-		return rows[i].fields();
+		if(rows[i] != null)
+			return rows[i].fields();
+		else
+			return null;
 	}
 
-	// TODO: This method has 1 result error.
 	@Override
 	public List<Object> remove(String key) {
 		int i = indexOf(key);
 
 		if (rows[i] != null) {
+			Row old = rows[i];
 			rows[i] = null;
-			return rows[i].fields();
+			return old.fields();
 		}
 
 		return null;
 	}
 
-	// TODO: This method has 1 result error.
 	@Override
 	public int degree() {
-		return 0;
+		return degree;
 	}
 
-	// TODO: This method has 1 logic error.
 	@Override
 	public int size() {
 		int size = 0;
 		for (Row row: rows)
-			size++;
+			if(row != null)
+				size++;
 		return size;
 	}
 
-	// TODO: This method has 1 assignment error.
 	@Override
 	public int hashCode() {
 		int fingerprint = 0;
 		for (Row row: rows)
 			if (row != null)
-				fingerprint = row.key().hashCode() ^ row.fields().hashCode();
+				fingerprint += row.key().hashCode() ^ row.fields().hashCode();
 		return fingerprint;
 	}
 
@@ -117,16 +119,14 @@ public class LookupTable implements Table {
 		throw new UnsupportedOperationException();
 	}
 
-	// TODO: This method has 1 result error.
 	@Override
 	public String name() {
-		return null;
+		return name;
 	}
 
-	// TODO: This method has 1 result error.
 	@Override
 	public List<String> columns() {
-		return null;
+		return columns;
 	}
 
 	@Override
