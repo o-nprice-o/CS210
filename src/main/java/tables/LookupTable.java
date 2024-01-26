@@ -63,7 +63,6 @@ public class LookupTable implements Table {
 		return null;
 	}
 
-	// TODO: This method has 1 logic error.
 	@Override
 	public List<Object> get(String key) {
 		int i = indexOf(key);
