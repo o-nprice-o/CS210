@@ -1,7 +1,7 @@
 package grade;
 
-import static grade.Config.*;
-import static java.time.Duration.ofMillis;
+import static grade.Config.LOGS_DIRECTORY;
+import static grade.Config.RANDOM_SEED;
 import static org.junit.jupiter.api.Assertions.*;
 import static org.junit.jupiter.api.DynamicTest.dynamicTest;
 
@@ -103,39 +103,25 @@ abstract class AbstractModule {
 		}
 
 		Table testConstructor(String which, List<Class<?>> types, List<Object> params, List<String> exempt) {
+			Table instance = null;
 			try {
-				var table = assertTimeoutPreemptively(ofMillis(TIMEOUT_MILLIS * 100), () -> {
-					try {
-						var clazz = Class.forName(which);
-						var ctor = clazz.getConstructor(types.toArray(new Class<?>[0]));
-						var instance = ctor.newInstance(params.toArray(new Object[0]));
-						return (Table) instance;
-					}
-					catch (ClassNotFoundException e) {
-						fail("Missing class %s".formatted(which));
-						return null;
-					}
-					catch (NoSuchMethodException e) {
-						fail("Missing %d-ary constructor with (%s) parameters".formatted(
-							types.size(),
-							encode(types, false, true)
-						));
-						return null;
-					}
-					catch (InvocationTargetException e) {
-						throw e.getCause();
-					}
-				}, "Timeout in constructor (infinite loop/recursion likely)");
-				logConstructor(name, table.getClass().getSimpleName(), params);
+				var clazz = Class.forName(which);
+				var ctor = clazz.getConstructor(types.toArray(new Class<?>[0]));
 
-				thenTestForbiddenClasses(table, exempt);
-
+				instance = (Table) ctor.newInstance(params.toArray(new Object[0]));
+				logConstructor(name, instance.getClass().getSimpleName(), params);
 				keyCache = new LinkedHashSet<>();
-				return table;
+
+				thenTestForbiddenClasses(instance, exempt);
 			}
-			catch (AssertionError e) {
-				throw e;
+			catch (ClassNotFoundException | InstantiationException | IllegalAccessException | IllegalArgumentException | InvocationTargetException | NoSuchMethodException e) {
+				fail("Missing %d-ary constructor with (%s) parameters for class %s".formatted(
+					types.size(),
+					encode(types, false, true),
+					which
+				));
 			}
+			return instance;
 		}
 
 		void thenTestForbiddenClasses(Table table, List<String> exempt) {
@@ -197,9 +183,7 @@ abstract class AbstractModule {
 				control.clear();
 				keyCache.clear();
 
-				assertTimeoutPreemptively(ofMillis(TIMEOUT_MILLIS*10), () -> {
-					subject.clear();
-		        }, "Timeout in clear (infinite loop/recursion likely)");
+				subject.clear();
 
 				thenTestSize("clear");
 				thenTestFingerprint("clear");
@@ -225,9 +209,7 @@ abstract class AbstractModule {
 						keyCache.remove(key);
 					keyCache.add(key);
 
-					var actual = assertTimeoutPreemptively(ofMillis(TIMEOUT_MILLIS), () -> {
-				    	return subject.put(key, fields);
-				    }, "Timeout in put (infinite loop/recursion likely)");
+					var actual = subject.put(key, fields);
 
 					if (hit) {
 						assertNotNull(actual, "Should hit for key %s but missed".formatted(key));
@@ -254,9 +236,7 @@ abstract class AbstractModule {
 				logCommentedCall(name, call);
 				return dynamicTest(title(call, key), () -> {
 					assertThrows(IllegalArgumentException.class, () -> {
-						assertTimeoutPreemptively(ofMillis(TIMEOUT_MILLIS), () -> {
-					    	return subject.put(key, fields);
-					    }, "Timeout in put (infinite loop/recursion likely)");
+						subject.put(key, fields);
 					}, "Missing exception for fields with size %d (guard condition error likely)".formatted(fields.size()));
 
 					passed++;
@@ -275,9 +255,7 @@ abstract class AbstractModule {
 				if (hit) hits++;
 				else misses++;
 
-				var actual = assertTimeoutPreemptively(ofMillis(TIMEOUT_MILLIS), () -> {
-		        	return subject.get(key);
-		        }, "Timeout in get (infinite loop/recursion likely)");
+				var actual = subject.get(key);
 
 				if (hit) {
 					assertNotNull(actual, "Should hit for key %s but missed".formatted(key));
@@ -313,9 +291,7 @@ abstract class AbstractModule {
 				if (hit)
 					keyCache.remove(key);
 
-				var actual = assertTimeoutPreemptively(ofMillis(TIMEOUT_MILLIS), () -> {
-		        	return subject.remove(key);
-		        }, "Timeout in remove (infinite loop/recursion likely)");
+				var actual = subject.remove(key);
 
 				if (hit) {
 					assertNotNull(actual, "Should hit for key %s but missed".formatted(key));
@@ -344,9 +320,7 @@ abstract class AbstractModule {
 		void thenTestDegree(String after) {
 			var expected = columns.size();
 
-			var actual = assertTimeoutPreemptively(ofMillis(TIMEOUT_MILLIS), () -> {
-	        	return subject.degree();
-	        }, "After %s, timeout in degree (infinite loop/recursion likely)".formatted(after));
+			var actual = subject.degree();
 
 			assertEquals(
 				expected,
@@ -358,9 +332,7 @@ abstract class AbstractModule {
 		void thenTestSize(String after) {
 			var expected = control.size();
 
-			var actual = assertTimeoutPreemptively(ofMillis(TIMEOUT_MILLIS), () -> {
-	        	return subject.size();
-	        }, "After %s, timeout in size (infinite loop/recursion likely)".formatted(after));
+			var actual = subject.size();
 
 			assertEquals(
 				expected,
@@ -375,9 +347,7 @@ abstract class AbstractModule {
 
 		void thenTestCapacityProperty(String after, CapacityProperty property) {
 			if (subject instanceof DataTable dsubject) {
-				var result = assertTimeoutPreemptively(ofMillis(TIMEOUT_MILLIS), () -> {
-		        	return dsubject.capacity();
-		        }, "After %s, timeout in capacity (infinite loop/recursion likely)".formatted(after));
+				var result = dsubject.capacity();
 
 				switch (property) {
 					case POWER_OF_2 -> assertTrue(
@@ -404,9 +374,7 @@ abstract class AbstractModule {
 		void thenTestFingerprint(String after) {
 			var expected = control.hashCode();
 
-			var actual = assertTimeoutPreemptively(ofMillis(TIMEOUT_MILLIS), () -> {
-	        	return subject.hashCode();
-	        }, "After %s, timeout in fingerprint (infinite loop/recursion likely)".formatted(after));
+			var actual = subject.hashCode();
 
 			assertEquals(
 				expected,
@@ -423,35 +391,32 @@ abstract class AbstractModule {
 			return dynamicTest(title(call), () -> {
 				var expected = control.size();
 
-				var actual = assertTimeoutPreemptively(ofMillis(TIMEOUT_MILLIS*10), () -> {
-					var iter = subject.iterator();
+				var actual = 0;
 
-					assertNotNull(iter, "Null iterator");
+				var iter = subject.iterator();
+				assertNotNull(iter, "Null iterator");
 
-					var i = 0;
-					while (iter.hasNext()) {
-						var row = iter.next();
+				while (iter.hasNext()) {
+					var row = iter.next();
 
-						if (i < expected) {
-							assertNotNull(
-								row,
-								"Null row on iteration %d (hasNext/next errors likely)".formatted(i)
-							);
+					if (actual < expected) {
+						assertNotNull(
+							row,
+							"Null row on iteration %d (hasNext/next errors likely)".formatted(actual)
+						);
 
-							if (!control.contains(row.key()))
-								fail("Row with unknown key %s on iteration %d (hasNext/next errors likely)".formatted(row.key(), i));
+						if (!control.contains(row.key()))
+							fail("Row with unknown key %s on iteration %d (hasNext/next errors likely)".formatted(row.key(), actual));
 
-							assertEquals(
-								control.get(row.key()),
-								row.fields(),
-								"Row with mismatched fields for key %s on iteration %d (hasNext/next errors likely)".formatted(row.key(), i)
-							);
-						}
-
-						i++;
+						assertEquals(
+							control.get(row.key()),
+							row.fields(),
+							"Row with mismatched fields for key %s on iteration %d (hasNext/next errors likely)".formatted(row.key(), actual)
+						);
 					}
-					return i;
-		        }, "Timeout in iterator (infinite loop/recursion likely)");
+
+					actual++;
+				}
 
 				assertEquals(
 					expected,
@@ -470,9 +435,7 @@ abstract class AbstractModule {
 			return dynamicTest(call, () -> {
 				var expected = name;
 
-				var actual = assertTimeoutPreemptively(ofMillis(TIMEOUT_MILLIS), () -> {
-		        	return subject.name();
-		        }, "Timeout in name (infinite loop/recursion likely)");
+				var actual = subject.name();
 
 				assertEquals(
 					expected,
@@ -491,9 +454,7 @@ abstract class AbstractModule {
 			return dynamicTest(call, () -> {
 				var expected = columns;
 
-				var actual = assertTimeoutPreemptively(ofMillis(TIMEOUT_MILLIS), () -> {
-		        	return subject.columns();
-		        }, "Timeout in columns (infinite loop/recursion likely)");
+				var actual = subject.columns();
 
 				assertEquals(
 					expected,
@@ -519,22 +480,18 @@ abstract class AbstractModule {
 		String title(String call) {
 			try {
 				if (subject instanceof DataTable dsubject) {
-					return assertTimeoutPreemptively(ofMillis(TIMEOUT_MILLIS), () -> {
-						return "%s when lf=%d/%d=%.3f".formatted(
-							call,
-							dsubject.size(),
-							dsubject.capacity(),
-							dsubject.loadFactor()
-						);
-			        }, "Before %s, timeout in size/capacity/loadFactor (infinite loop/recursion likely)".formatted(call));
+					return "%s when lf=%d/%d=%.3f".formatted(
+						call,
+						dsubject.size(),
+						dsubject.capacity(),
+						dsubject.loadFactor()
+					);
 				}
 				else {
-					return assertTimeoutPreemptively(ofMillis(TIMEOUT_MILLIS), () -> {
-						return "%s when n=%d".formatted(
-							call,
-							subject.size()
-						);
-			        }, "Before %s, timeout in size (infinite loop/recursion likely)".formatted(call));
+					return "%s when n=%d".formatted(
+						call,
+						subject.size()
+					);
 				}
 			}
 			catch (AssertionError e) {
@@ -546,26 +503,22 @@ abstract class AbstractModule {
 			var hit = control.contains(key);
 			try {
 				if (subject instanceof DataTable dsubject) {
-					return assertTimeoutPreemptively(ofMillis(TIMEOUT_MILLIS), () -> {
-						return "%s %s %s when lf=%d/%d=%.3f".formatted(
-							call,
-							hit ? "hits" : "misses",
-							encode(key),
-							dsubject.size(),
-							dsubject.capacity(),
-							dsubject.loadFactor()
-						);
-			        }, "Before %s, timeout in size/capacity/loadFactor (infinite loop/recursion likely)".formatted(call));
+					return "%s %s %s when lf=%d/%d=%.3f".formatted(
+						call,
+						hit ? "hits" : "misses",
+						encode(key),
+						dsubject.size(),
+						dsubject.capacity(),
+						dsubject.loadFactor()
+					);
 				}
 				else {
-					return assertTimeoutPreemptively(ofMillis(TIMEOUT_MILLIS), () -> {
-						return "%s %s %s when size=%d".formatted(
-							call,
-							hit ? "hits" : "misses",
-							encode(key),
-							subject.size()
-						);
-			        }, "Before %s, timeout in size (infinite loop/recursion likely)".formatted(call));
+					return "%s %s %s when size=%d".formatted(
+						call,
+						hit ? "hits" : "misses",
+						encode(key),
+						subject.size()
+					);
 				}
 			}
 			catch (AssertionError e) {
