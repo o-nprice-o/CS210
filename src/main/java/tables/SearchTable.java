@@ -2,103 +2,177 @@ package tables;
 
 import java.util.Iterator;
 import java.util.List;
-
+import java.util.*;
 import model.DataTable;
 import model.Row;
+import model.Table;
 
 public class SearchTable implements DataTable {
-	/*
-	 * TODO: For Module 1, finish this stub.
-	 */
+	private Row[] rows;
+	private String name;
+	private List<String> columns;
+	private int degree;
+	private int size;
+	private int capacity;
+	private static final int INITIAL_CAPACITY = 16;
+	private int fingerprint;
 
 	public SearchTable(String name, List<String> columns) {
-		throw new UnsupportedOperationException();
+		this.name = name;
+		this.columns = Collections.unmodifiableList(new ArrayList<>(columns));
+		this.degree = columns.size();
+		clear();
 	}
 
 	@Override
 	public void clear() {
-		throw new UnsupportedOperationException();
+		this.capacity = INITIAL_CAPACITY;
+		this.rows = new Row[this.capacity];
+		this.size = 0;
+		this.fingerprint = 0;
 	}
 
 	@Override
 	public List<Object> put(String key, List<Object> fields) {
-		throw new UnsupportedOperationException();
+		if (fields.size() != degree) {
+			throw new IllegalArgumentException("Degree of given row does not match the degree field of the table.");
+		}
+		Row newRow = new Row(key, fields);
+		for (int i = 0; i < size; i++) {
+			if (rows[i].getKey().equals(key)) {
+				List<Object> oldFields = rows[i].getFields();
+				rows[i] = newRow;
+				fingerprint -= rows[i].hashCode();
+				fingerprint += newRow.hashCode();
+				return oldFields;
+			}
+		}
+		if (size == capacity) {
+			capacity *= 2;
+			rows = Arrays.copyOf(rows, capacity);
+		}
+		rows[size] = newRow;
+		fingerprint += newRow.hashCode();
+		return null;
 	}
 
 	@Override
 	public List<Object> get(String key) {
-		throw new UnsupportedOperationException();
+		for(int i = 0; i < size; i++) {
+			if(rows[i].getKey().equals(key)) {
+				return rows[i].getFields();
+			}
+		}
+		return null;
 	}
 
 	@Override
 	public List<Object> remove(String key) {
-		throw new UnsupportedOperationException();
+		for(int i = 0; i < size; i++) {
+			if(rows[i].getKey().equals(key)) {
+				List<Object> oldFields = rows[i].getFields();
+				fingerprint -= rows[i].hashCode();
+				rows[i] = rows[--size];
+				rows[size] = null;
+				return oldFields;
+			}
+		}
+		return null;
 	}
 
 	@Override
 	public int degree() {
-		throw new UnsupportedOperationException();
+		return degree;
 	}
 
 	@Override
 	public int size() {
-		throw new UnsupportedOperationException();
+		return size;
 	}
 
 	@Override
 	public boolean isEmpty() {
-		throw new UnsupportedOperationException();
+		return size == 0;
 	}
 
 	@Override
 	public int capacity() {
-		throw new UnsupportedOperationException();
+		return capacity;
 	}
 
 	@Override
 	public double loadFactor() {
-		throw new UnsupportedOperationException();
+		return (double) size / capacity;
 	}
 
 	@Override
 	public int hashCode() {
-		throw new UnsupportedOperationException();
+		return fingerprint;
 	}
 
 	@Override
 	public boolean equals(Object obj) {
-		throw new UnsupportedOperationException();
+		if (this == obj) {
+			return true;
+		}
+		if (obj == null || getClass() != obj.getClass()) {
+			return false;
+		}
+		return obj.hashCode() == this.hashCode();
 	}
 
 	@Override
 	public Iterator<Row> iterator() {
-		return new Iterator<>() {
-
+		return new Iterator<Row>() {
+			int currentIndex = 0;
 
 			@Override
 			public boolean hasNext() {
-				throw new UnsupportedOperationException();
+				return currentIndex < size;
 			}
 
 			@Override
 			public Row next() {
-				throw new UnsupportedOperationException();
+				if (!hasNext()) {
+					throw new NoSuchElementException();
+				}
+				int old = currentIndex;
+				currentIndex++;
+				return rows[old];
 			}
 		};
 	}
 
 	@Override
 	public String name() {
-		throw new UnsupportedOperationException();
+		return name;
 	}
 
 	@Override
 	public List<String> columns() {
-		throw new UnsupportedOperationException();
+		return columns;
 	}
 
 	@Override
 	public String toString() {
-		throw new UnsupportedOperationException();
+		return toTabularView(true);
+	}
+	
+	public class Row{
+		private String key;
+		private List<Object> fields;
+		
+		public Row(String key, List<Object> fields) {
+			this.key = key;
+			this.fields = new ArrayList<>(fields);
+		}
+		
+		public String getKey() {
+			return key;
+		}
+		
+		public List<Object> getFields() {
+			return fields;
+		}
 	}
 }
