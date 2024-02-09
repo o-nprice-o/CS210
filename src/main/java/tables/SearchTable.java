@@ -1,7 +1,5 @@
 package tables;
 
-import java.util.Iterator;
-import java.util.List;
 import java.util.*;
 import model.DataTable;
 import model.Row;
@@ -19,7 +17,7 @@ public class SearchTable implements DataTable {
 
 	public SearchTable(String name, List<String> columns) {
 		this.name = name;
-		this.columns = Collections.unmodifiableList(new ArrayList<>(columns));
+		this.columns = List.copyOf(columns); // creates an immutable list
 		this.degree = columns.size();
 		clear();
 	}
@@ -34,15 +32,18 @@ public class SearchTable implements DataTable {
 
 	@Override
 	public List<Object> put(String key, List<Object> fields) {
-		if (fields.size() != degree) {
-			throw new IllegalArgumentException("Degree of given row does not match the degree field of the table.");
+		if (fields.size() + 1 > degree) {
+			throw new IllegalArgumentException("Row is too wide");
+		}
+		if(1+ fields.size() < degree) {
+			throw new IllegalArgumentException("Row is too narrow");
 		}
 		Row newRow = new Row(key, fields);
 		for (int i = 0; i < size; i++) {
-			if (rows[i].getKey().equals(key)) {
-				List<Object> oldFields = rows[i].getFields();
-				rows[i] = newRow;
+			if (rows[i].key().equals(key)) {
+				List<Object> oldFields = rows[i].fields();
 				fingerprint -= rows[i].hashCode();
+				rows[i] = newRow;
 				fingerprint += newRow.hashCode();
 				return oldFields;
 			}
@@ -53,14 +54,15 @@ public class SearchTable implements DataTable {
 		}
 		rows[size] = newRow;
 		fingerprint += newRow.hashCode();
+		size++;
 		return null;
 	}
 
 	@Override
 	public List<Object> get(String key) {
 		for(int i = 0; i < size; i++) {
-			if(rows[i].getKey().equals(key)) {
-				return rows[i].getFields();
+			if(rows[i].key().equals(key)) {
+				return rows[i].fields();
 			}
 		}
 		return null;
@@ -69,8 +71,8 @@ public class SearchTable implements DataTable {
 	@Override
 	public List<Object> remove(String key) {
 		for(int i = 0; i < size; i++) {
-			if(rows[i].getKey().equals(key)) {
-				List<Object> oldFields = rows[i].getFields();
+			if(rows[i].key().equals(key)) {
+				List<Object> oldFields = rows[i].fields();
 				fingerprint -= rows[i].hashCode();
 				rows[i] = rows[--size];
 				rows[size] = null;
@@ -158,21 +160,18 @@ public class SearchTable implements DataTable {
 		return toTabularView(true);
 	}
 	
-	public class Row{
-		private String key;
-		private List<Object> fields;
-		
-		public Row(String key, List<Object> fields) {
-			this.key = key;
-			this.fields = new ArrayList<>(fields);
+	@Override
+	public String toTabularView(boolean sorted) {
+		StringBuilder sb = new StringBuilder();
+		sb.append(name).append("\n");
+		sb.append(String.join(" | ", columns)).append("\n");
+		Row[] rowsToPrint = Arrays.copyOf(rows, size);
+		if (sorted) {
+			Arrays.sort(rowsToPrint);
 		}
-		
-		public String getKey() {
-			return key;
+		for (Row row : rowsToPrint) {
+			sb.append(row.key()).append(": ").append(row.fields().toString()).append("\n");
 		}
-		
-		public List<Object> getFields() {
-			return fields;
-		}
+		return sb.toString();
 	}
 }
