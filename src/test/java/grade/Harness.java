@@ -7,6 +7,7 @@ import static org.junit.jupiter.api.DynamicTest.dynamicTest;
 
 import java.io.IOException;
 import java.io.PrintStream;
+import java.lang.invoke.MethodType;
 import java.lang.reflect.Field;
 import java.lang.reflect.InvocationTargetException;
 import java.math.BigInteger;
@@ -150,6 +151,9 @@ abstract class AbstractModule {
 				var type = value.getClass();
 				while (type.isArray())
 					type = type.getComponentType();
+
+				if (type.isPrimitive())
+					type = MethodType.methodType(type).wrap().returnType();
 
 				var pname = type.getPackage().getName();
 				for (var ename: exempt) {
