@@ -6,14 +6,17 @@ import java.util.Arrays;
 import java.util.List;
 
 import model.Table;
-import tables.LookupTable;
+import tables.HashTable;
 
 public class Sandbox {
 	public static void main(String[] args) {
-		Table table = new LookupTable("test", List.of("a", "b", "c"));
-		table.put("a", Arrays.asList(1, 2));
-		table.put("b", Arrays.asList(3, 4));
-		table.put("c", Arrays.asList(5, 6));
-		System.out.println(table);
+		Table rc_table = new HashTable("my_classes", Arrays.asList("title", "subject"));
+		rc_table.put("CS210", Arrays.asList("CS"));
+		rc_table.put("Math 156", Arrays.asList("Math"));
+		rc_table.put("History 101", Arrays.asList("History"));
+		rc_table.put("CS350", Arrays.asList("CS"));
+		rc_table.put("Sociology 101", Arrays.asList("Sociology"));
+		System.out.println(rc_table);
 	}
+	
 }

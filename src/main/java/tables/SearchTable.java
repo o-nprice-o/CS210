@@ -160,19 +160,4 @@ public class SearchTable implements DataTable {
 	public String toString() {
 		return toTabularView(true);
 	}
-	
-	@Override
-	public String toTabularView(boolean sorted) {
-		StringBuilder sb = new StringBuilder();
-		sb.append(name).append("\n");
-		sb.append(String.join(" | ", columns)).append("\n");
-		Row[] rowsToPrint = Arrays.copyOf(rows, size);
-		if (sorted) {
-			Arrays.sort(rowsToPrint);
-		}
-		for (Row row : rowsToPrint) {
-			sb.append(row.key()).append(": ").append(row.fields().toString()).append("\n");
-		}
-		return sb.toString();
-	}
 }
