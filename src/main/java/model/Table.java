@@ -54,7 +54,7 @@ public interface Table extends Iterable<Row> {
 
         // Calculate column widths
         for (Row row : this) {
-            for (int i = 0; i < numColumns; i++) {
+            for (int i = 0; i < numColumns - 1; i++) {
                 Object field = row.fields().get(i);
                 columnWidths[i] = Math.max(columnWidths[i], field.toString().length());
             }
@@ -71,7 +71,8 @@ public interface Table extends Iterable<Row> {
         sb.append("|");
         for (int i = 0; i < numColumns; i++) {
             String columnLabel = columns.get(i);
-            sb.append(" ").append(String.format("%-" + columnWidths[i] + "s", columnLabel)).append(" |");
+            sb.append(" ").append(((columnLabel)));
+            sb.append(" |");
         }
         sb.append("\n");
 
@@ -85,13 +86,14 @@ public interface Table extends Iterable<Row> {
         }
         for (Row row : rows) {
             sb.append("|");
-            for (int i = 0; i < numColumns; i++) {
+            for (int i = 0; i < numColumns - 1; i++) {
                 Object field = row.fields().get(i);
                 String fieldValue = field == null ? " " : field.toString();
                 if (fieldValue.length() > columnWidths[i]) {
                     fieldValue = fieldValue.substring(0, columnWidths[i] - 3) + "...";
                 }
-                sb.append(" ").append(String.format("%-" + columnWidths[i] + "s", fieldValue)).append(" |");
+                sb.append(" ").append((fieldValue).toString());
+                sb.append(" |");
             }
             sb.append("\n");
         }
