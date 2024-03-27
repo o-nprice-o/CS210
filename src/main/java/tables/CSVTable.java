@@ -1,101 +1,323 @@
 package tables;
 
+import java.io.IOException;
+import java.nio.file.Files;
+import java.nio.file.Path;
+import java.nio.file.Paths;
+import java.util.ArrayList;
+import java.util.Arrays;
 import java.util.Iterator;
 import java.util.List;
+import java.util.StringJoiner;
 
 import model.FileTable;
 import model.Row;
+import model.Table;
 
 public class CSVTable implements FileTable {
-	/*
-	 * TODO: For Module 4, finish this stub.
-	 */
+	private static final Path BASE_DIR = Paths.get("db", "tables");
+	private Path filePath;
 
+	// Constructor for creating a table with specified name and columns
 	public CSVTable(String name, List<String> columns) {
-		throw new UnsupportedOperationException();
+		try {
+			if (!Files.isDirectory(BASE_DIR)) {
+				Files.createDirectories(BASE_DIR);
+			}
+			filePath = BASE_DIR.resolve(name + ".csv");
+			if (!Files.exists(filePath)) {
+				Files.createFile(filePath);
+			}
+			String headerFile = String.join(",", columns);
+			List<String> lines = new ArrayList<String>();
+			lines.add(headerFile);
+			Files.write(filePath, lines);
+		} catch (IOException e) {
+			e.printStackTrace();
+		}
 	}
 
+	// Constructor for creating a table with specified name
 	public CSVTable(String name) {
-		throw new UnsupportedOperationException();
+		this.filePath = BASE_DIR.resolve(name + ".csv");
+		if (!Files.exists(filePath)) {
+			throw new IllegalArgumentException("File does not exist: " + filePath);
+		}
 	}
 
+	// Clear method implementation
 	@Override
 	public void clear() {
-		throw new UnsupportedOperationException();
+		try {
+			List<String> lines = Files.readAllLines(filePath);
+			String header = lines.get(0);
+			lines.clear();
+			lines.add(header);
+			Files.write(filePath, lines);
+		} catch (IOException e) {
+			e.printStackTrace();
+		}
 	}
 
-	private static String encodeRow(String key, List<Object> fields) {
-		throw new UnsupportedOperationException();
+	// Name method implementation
+	public String name() {
+		return filePath.getFileName().toString().replace(".csv", "");
 	}
 
-	private static Row decodeRow(String record) {
-		throw new UnsupportedOperationException();
+	// Columns method implementation
+	public List<String> columns() {
+		List<String> columns = new ArrayList<String>();
+		try {
+			List<String> lines = Files.readAllLines(filePath);
+			String header = lines.get(0);
+			columns = Arrays.asList(header.split(","));
+		} catch (IOException e) {
+			e.printStackTrace();
+		}
+		return columns;
 	}
 
-	private static String encodeField(Object obj) {
-		throw new UnsupportedOperationException();
-	}
-
-	private static Object decodeField(String field) {
-		throw new UnsupportedOperationException();
-	}
-
-	@Override
-	public List<Object> put(String key, List<Object> fields) {
-		throw new UnsupportedOperationException();
-	}
-
-	@Override
-	public List<Object> get(String key) {
-		throw new UnsupportedOperationException();
-	}
-
-	@Override
-	public List<Object> remove(String key) {
-		throw new UnsupportedOperationException();
-	}
-
-	@Override
+	// Degree method implementation
 	public int degree() {
-		throw new UnsupportedOperationException();
+		return this.columns().size();
 	}
 
-	@Override
+	// Size method implementation
 	public int size() {
-		throw new UnsupportedOperationException();
+		List<String> lines = new ArrayList<String>();
+		try {
+			lines = Files.readAllLines(filePath);
+		} catch (IOException e) {
+			e.printStackTrace();
+		}
+		return lines.size() - 1;
 	}
 
+	// Equals method implementation
+	public boolean equals(Object obj) {
+		if (!(obj instanceof CSVTable)) {
+			return false;
+		} else {
+			Table thatTable = (Table) obj;
+			return this.hashCode() == thatTable.hashCode();
+		}
+	}
+
+	// Method to encode a row to a record string
+	private static String encodeRow(Row row) {
+		StringJoiner joiner = new StringJoiner(",");
+		joiner.add(encodeField(row.key()));
+		for (Object field : row.fields()) {
+			joiner.add(encodeField(field));
+		}
+		return joiner.toString();
+	}
+
+	// Method to decode a record string to a row
+	private static Row decodeRow(String record) {
+		List<String> pieces = Arrays.asList(record.split(","));
+		String key = pieces.get(0).substring(1, pieces.get(0).length() - 1);
+		List<Object> fields = new ArrayList<>();
+
+		for (int i = 1; i < pieces.size(); i++) {
+			fields.add(decodeField(pieces.get(i)));
+		}
+		return new Row(key, fields);
+	}
+
+	// Method to encode a field
+	private static String encodeField(Object obj) {
+		if (obj == null) {
+			return "null";
+		} else if (obj instanceof String) {
+			return "\"" + obj.toString() + "\"";
+		} else if ((obj instanceof Boolean) || (obj instanceof Integer) || (obj instanceof Double)) {
+			return obj.toString();
+		} else {
+			throw new IllegalArgumentException("Unsupported object: " + obj.toString());
+		}
+	}
+
+	// Method to decode a field
+	private static Object decodeField(String field) {
+		if (field.equalsIgnoreCase("null")) {
+			return null;
+		} else if (field.startsWith("\"") && field.endsWith("\"")) {
+			return field.substring(1, field.length() - 1);
+		} else if (field.equalsIgnoreCase("true")) {
+			return true;
+		} else if (field.equalsIgnoreCase("false")) {
+			return false;
+		} else {
+			try {
+				return Integer.parseInt(field);
+			} catch (NumberFormatException e1) {
+				try {
+					return Double.parseDouble(field);
+				} catch (NumberFormatException e2) {
+					throw new IllegalArgumentException("Unrecognized field: " + field);
+				}
+			}
+		}
+	}
+
+	// HashCode method implementation
 	@Override
 	public int hashCode() {
-		throw new UnsupportedOperationException();
+		int hash = 0;
+		try {
+			List<String> lines = Files.readAllLines(filePath);
+
+			for (int i = 1; i < lines.size(); i++) {
+				String line = lines.get(i);
+				Row row = decodeRow(line);
+				hash += row.hashCode();
+			}
+		} catch (IOException e) {
+			e.printStackTrace();
+		}
+		return hash;
 	}
 
-	@Override
-	public boolean equals(Object obj) {
-		throw new UnsupportedOperationException();
+	// Method to put a row into the table
+	public List<Object> put(String key, List<Object> fields) {
+		try {
+			List<String> lines = Files.readAllLines(filePath);
+			String header = lines.get(0);
+			List<String> headerList = Arrays.asList(header.split(","));
+
+			if (fields.size() + 1 != headerList.size()) {
+				throw new IllegalArgumentException("error, fields are not the same size");
+			}
+
+			Row newRow = new Row(key, fields);
+			String newRecord = encodeRow(newRow);
+
+			int index = -1;
+
+			for (int i = 1; i < lines.size(); i++) {
+				String line = lines.get(i);
+				Row oldRow = decodeRow(line);
+				if (oldRow.key().equals(key)) {
+					index = i;
+					break;
+				}
+			}
+
+			if (index != -1) {
+				Row oldRow = decodeRow(lines.get(index));
+				lines.remove(index);
+				lines.add(1, newRecord);
+				return oldRow.fields();
+			} else {
+				lines.add(1, newRecord);
+				Files.write(filePath, lines);
+				return null;
+			}
+
+		} catch (IOException e) {
+			e.printStackTrace();
+		}
+		return null;
 	}
 
+	// Method to get a row from the table
+	public List<Object> get(String key) {
+		try {
+			List<String> lines = Files.readAllLines(filePath);
+
+			int index = -1;
+
+			for (int i = 1; i < lines.size(); i++) {
+				String line = lines.get(i);
+				Row oldRow = decodeRow(line);
+				if (oldRow.key().equals(key)) {
+					index = i;
+					break;
+				}
+			}
+
+			if (index != -1) {
+				Row oldRow = decodeRow(lines.get(index));
+				lines.remove(index);
+				lines.add(1, encodeRow(oldRow));
+				Files.write(filePath, lines);
+				return oldRow.fields();
+			}
+			return null;
+
+		} catch (IOException e) {
+			e.printStackTrace();
+			return null;
+		}
+	}
+
+	public List<Object> remove(String key) {
+		try {
+			List<String> lines = Files.readAllLines(filePath);
+
+			int index = -1;
+
+			for (int i = 1; i < lines.size(); i++) {
+				String line = lines.get(i);
+				Row oldRow = decodeRow(line);
+				if (oldRow.key().equals(key)) {
+					index = i;
+					break;
+				}
+			}
+
+			if (index != -1) {
+				Row oldRow = decodeRow(lines.get(index));
+				lines.remove(index);
+				Files.write(filePath, lines);
+				return oldRow.fields();
+			}
+			return null;
+		} catch (IOException e) {
+			e.printStackTrace();
+			return null;
+		}
+	}
+
+	// Method to return an iterator over the rows of the table
 	@Override
 	public Iterator<Row> iterator() {
-		throw new UnsupportedOperationException();
+		List<String> lines;
+		List<Row> row = new ArrayList<Row>();
+		try {
+			lines = Files.readAllLines(filePath);
+			for (int i = 1; i < lines.size(); i++) {
+				row.add(decodeRow(lines.get(i)));
+			}
+		} catch (IOException e) {
+			e.printStackTrace();
+		}
+		return row.iterator();
 	}
 
-	@Override
-	public String name() {
-		throw new UnsupportedOperationException();
-	}
-
-	@Override
-	public List<String> columns() {
-		throw new UnsupportedOperationException();
-	}
-
+	// Method to return a sorted view of the table
 	@Override
 	public String toString() {
-		throw new UnsupportedOperationException();
+		return toTabularView(true);
 	}
 
-	public static CSVTable fromText(String name, String text) {
-		throw new UnsupportedOperationException();
+	public static CSVTable fromText(String name, String text) throws IOException {
+		try {
+			if (!Files.isDirectory(BASE_DIR)) {
+				Files.createDirectory(BASE_DIR);
+			}
+			Path newFilePath = BASE_DIR.resolve(name + ".csv");
+			if (!Files.exists(newFilePath)) {
+				Files.createFile(newFilePath);
+			}
+			Files.write(newFilePath, text.getBytes());
+
+		} catch (IOException e) {
+			e.printStackTrace();
+			return null;
+		}
+		return new CSVTable(name);
 	}
+
 }
