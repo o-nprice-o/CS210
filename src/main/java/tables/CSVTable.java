@@ -140,24 +140,40 @@ public class CSVTable implements FileTable {
 
 	// Method to decode a field
 	private static Object decodeField(String field) {
-		if (field.equalsIgnoreCase("null")) {
+		if(field.equalsIgnoreCase("null")) {
 			return null;
 		} else if (field.startsWith("\"") && field.endsWith("\"")) {
 			return field.substring(1, field.length() - 1);
-		} else if (field.equalsIgnoreCase("true")) {
-			return true;
-		} else if (field.equalsIgnoreCase("false")) {
-			return false;
-		} else {
-			try {
-				return Integer.parseInt(field);
-			} catch (NumberFormatException e1) {
-				try {
-					return Double.parseDouble(field);
-				} catch (NumberFormatException e2) {
-					throw new IllegalArgumentException("Unrecognized field: " + field);
-				}
+		} else if (field.equalsIgnoreCase("true") || field.equalsIgnoreCase("false")) {
+			boolean value = false;
+			if(field.equalsIgnoreCase("true")) {
+				value = true;
 			}
+			return value;
+		} else if(isInteger(field)) {
+			return Integer.parseInt(field);
+		} else if(isDouble(field)) {
+			return Double.parseDouble(field);
+		} else {
+			throw new IllegalArgumentException("Unsupported field: ");
+		}
+	}
+	
+	private static boolean isInteger(String field) {
+		try {
+			Integer.parseInt(field);
+			return true;
+		} catch (NumberFormatException e) {
+			return false;
+		}
+	}
+	
+	private static boolean isDouble(String field) {
+		try {
+			Double.parseDouble(field);
+			return true;
+		} catch (NumberFormatException e) {
+			return false;
 		}
 	}
 
