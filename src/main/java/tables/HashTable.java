@@ -1,6 +1,5 @@
 package tables;
 
-import java.util.ArrayList;
 import java.util.List;
 import java.util.Collections;
 import java.util.Iterator;
@@ -22,7 +21,8 @@ public class HashTable implements DataTable {
     private int fingerprint;
     private int contamination; // New field for tombstones
     private static final int INITIAL_CAPACITY = 661; // An odd prime number between 10 and 50
-    private static final double LOAD_FACTOR_BOUND = 0.75; // Load factor bound set to 75%
+    @SuppressWarnings("unused")
+	private static final double LOAD_FACTOR_BOUND = 0.75; // Load factor bound set to 75%
     private static final Row TOMBSTONE = new Row(null, null); // Static tombstone row
     private static final String SALT = "Nicholas Price";
 
@@ -164,7 +164,7 @@ public class HashTable implements DataTable {
         } else {
             rows[i] = newRow;
             size++;
-            fingerprint += newRow.hashCode(); // Add the hash of the new key
+            fingerprint += newRow.hashCode(); 
             return null; // No old fields
         }
     }
@@ -219,7 +219,7 @@ public class HashTable implements DataTable {
         return toTabularView(false);
     }
 
-    private double loadFactor() {
+    public double loadFactor() {
         return ((double) (size + contamination)) / capacity;
     }
 }

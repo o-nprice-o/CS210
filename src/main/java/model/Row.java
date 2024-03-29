@@ -29,6 +29,6 @@ public record Row(String key, List<Object> fields) implements Comparable<Row> {
 
     @Override
     public int hashCode() {
-        return key.hashCode() *31 + fields.hashCode();
+        return key.hashCode() ^ fields.hashCode();
     }
 }
