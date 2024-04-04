@@ -115,7 +115,14 @@ abstract class AbstractModule {
 
 				thenTestForbiddenClasses(instance, exempt);
 			}
-			catch (ClassNotFoundException | InstantiationException | IllegalAccessException | IllegalArgumentException | InvocationTargetException | NoSuchMethodException e) {
+			catch (InvocationTargetException e) {
+				var cause = e.getCause();
+				if (cause instanceof RuntimeException recause)
+					throw recause;
+				else
+					throw new RuntimeException(cause);
+			}
+			catch (ClassNotFoundException | InstantiationException | IllegalAccessException | NoSuchMethodException e) {
 				fail("Missing %d-ary constructor with (%s) parameters for class %s".formatted(
 					types.size(),
 					encode(types, false, true),
