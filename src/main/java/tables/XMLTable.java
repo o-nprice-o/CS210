@@ -1,160 +1,274 @@
 package tables;
 
+import java.io.FileWriter;
+import java.io.IOException;
+import java.nio.file.Files;
+import java.nio.file.Path;
+import java.nio.file.Paths;
+import java.util.ArrayList;
+import java.util.Iterator;
+import java.util.List;
+
 import org.dom4j.Document;
 import org.dom4j.DocumentException;
 import org.dom4j.DocumentHelper;
 import org.dom4j.Element;
 import org.dom4j.io.OutputFormat;
+import org.dom4j.io.SAXReader;
 import org.dom4j.io.XMLWriter;
 
-import java.io.File;
-import java.io.FileWriter;
-import java.io.IOException;
-import java.nio.file.Files;
-import java.nio.file.Paths;
-import java.util.ArrayList;
-import java.util.Iterator;
-import java.util.List;
-import java.util.Objects;
+import model.Row;
+import model.FileTable;
+import model.Table;
 
-public class XMLTable {
-    private static final String BASE_DIRECTORIES = "db"; // Base directories for sub-tables
-    private static final String FILE_EXTENSION = ".xml"; // File extension for table files
+public class XMLTable implements FileTable {
+	/*
+	 * TODO: For Module 5, finish this stub.
+	 */
+	private static final Path BASE_DIR_PATH = Paths.get("db", "tables");
+	private Path flatFile;
+	private Document document;
 
-    private final String name;
-    private final String path;
-    private Document document;
+	public XMLTable(String name, List<String> columns) {
+		try {
+			if (!Files.isDirectory(BASE_DIR_PATH)) {
+				Files.createDirectories(BASE_DIR_PATH);
+			}
 
-    // 2-ary constructor
-    public XMLTable(String name, List<String> columns) {
-        this.name = name;
-        this.path = BASE_DIRECTORIES + File.separator + name + FILE_EXTENSION;
+			flatFile = BASE_DIR_PATH.resolve(name + ".xml");
 
-        createBaseDirectoriesIfNeeded();
-        initializeDocument(columns);
-    }
+			if (!Files.exists(flatFile)) {
+				Files.createFile(flatFile);
+			}
+			this.document = DocumentHelper.createDocument();
 
-    // 1-ary constructor
-    public XMLTable(String name) {
-        this.name = name;
-        this.path = BASE_DIRECTORIES + File.separator + name + FILE_EXTENSION;
+			var root = document.addElement("table");
+			var col = root.addElement("columns");
+			root.addElement("rows");
+			for (String column : columns) {
+				col.addElement("column").addText(column);
+			}
 
-        if (!fileExistsAtPath()) {
-            throw new IllegalArgumentException("File does not exist: " + path);
-        }
+			flush();
 
-        initializeDocumentFromExistingFile();
-    }
-    
-    private boolean fileExistsAtPath() {
-        return Files.exists(Paths.get(this.path));
-    }
+		} catch (IOException e) {
+			e.printStackTrace();
+		}
+	}
 
-    // Clear method
-    public void clear() {
-        Element rowsElement = document.getRootElement().element("rows");
-        rowsElement.clearContent();
-        flushToFile();
-    }
+	public XMLTable(String name) {
+		try {
+			if (!Files.isDirectory(BASE_DIR_PATH)) {
+				Files.createDirectories(BASE_DIR_PATH);
+			}
 
-    // Public methods for statistics and predicates
-    public String name() {
-        return name;
-    }
+			flatFile = BASE_DIR_PATH.resolve(name + ".xml");
+			if (!Files.exists(flatFile)) {
+				throw new IllegalArgumentException("Error, flat file doesnt exist at the path");
+			}
+			this.document = new SAXReader().read(flatFile.toFile());
+		} catch (DocumentException e) {
+			throw new IllegalStateException();
+		} catch (IOException e) {
+			e.printStackTrace();
+		}
+	}
 
-    public List<String> columns() {
-        List<String> columnList = new ArrayList<>();
-        Element columnsElement = document.getRootElement().element("columns");
-        for (Iterator<Element> it = columnsElement.elementIterator("column"); it.hasNext(); ) {
-            columnList.add(it.next().getText());
-        }
-        return columnList;
-    }
+	@Override
+	public void clear() {
+		Element root = this.document.getRootElement();
+		root.element("rows").clearContent();
+		flush();
 
-    public int degree() {
-        return columns().size();
-    }
+	}
 
-    public int size() {
-        Element rowsElement = document.getRootElement().element("rows");
-        return rowsElement.elements("row").size();
-    }
+	@Override
+	public void flush() {
+		try {
+			OutputFormat format = OutputFormat.createPrettyPrint();
+			XMLWriter writer = new XMLWriter(new FileWriter(flatFile.toFile()), format);
+			writer.write(this.document);
+			writer.close();
+		} catch (IOException e) {
+			e.printStackTrace();
+		}
+	}
 
-    @Override
-    public boolean equals(Object obj) {
-        if (this == obj) return true;
-        if (obj == null || getClass() != obj.getClass()) return false;
+	@Override
+	public List<Object> put(String key, List<Object> fields) {
+		if (fields.size() + 1 != this.degree()) {
+			throw new IllegalArgumentException("error, degree does not match");
+		}
+		Element rows = document.getRootElement().element("rows");
+		for (Element rowElement : rows.elements()) {
+			if (rowElement.attributeValue("key").equals(key)) {
+				List<Object> oldFields = new ArrayList<>();
+				for (Element fieldElement : rowElement.elements()) {
+					oldFields.add(fieldtoObject(fieldElement));
+				}
+				rows.remove(rowElement);
+				Element addElement = rows.addElement("row");
+				addElement.addAttribute("key", key);
+				for (Object field : fields) {
+					Element fieldElem = addElement.addElement("field");
+					if (field != null) {
+						fieldElem.addAttribute("type", field.getClass().getName());
+						fieldElem.addText(field.toString());
+					} else {
+						fieldElem.addAttribute("type", "null");
+					}
+				}
+				flush();
+				return oldFields;
+			}
+		}
+		Element addElement = rows.addElement("row");
+		addElement.addAttribute("key", key);
+		for (Object field : fields) {
+			Element fieldElem = addElement.addElement("field");
+			if (field != null) {
+				fieldElem.addAttribute("type", field.getClass().getName());
+				fieldElem.addText(field.toString());
+			} else {
+				fieldElem.addAttribute("type", "null");
+			}
+		}
+		flush();
+		return null;
+	}
 
-        XMLTable otherTable = (XMLTable) obj;
-        return columns().equals(otherTable.columns());
-    }
+	@Override
+	public List<Object> get(String key) {
+		Element rows = this.document.getRootElement().element("rows");
+		for (Element rowElement : rows.elements()) {
+			if (rowElement.attributeValue("key").equals(key)) {
+				List<Object> fields = new ArrayList<>();
+				for (Element fieldElement : rowElement.elements()) {
+					fields.add(fieldtoObject(fieldElement));
+				}
+				return fields;
+			}
+		}
+		return null;
+	}
 
-    @Override
-    public int hashCode() {
-        return Objects.hash(columns());
-    }
+	@Override
+	public List<Object> remove(String key) {
+		Element rows = this.document.getRootElement().element("rows");
+		for (Element rowElement : rows.elements()) {
+			if (rowElement.attributeValue("key").equals(key)) {
+				List<Object> oldFields = new ArrayList<>();
+				for (Element fieldElement : rowElement.elements()) {
+					oldFields.add(fieldtoObject(fieldElement));
+				}
+				rows.remove(rowElement);
+				flush();
+				return oldFields;
+			}
+		}
+		return null;
+	}
 
-    @Override
-    public String toString() {
-        StringBuilder sb = new StringBuilder();
-        sb.append("Table: ").append(name()).append("\n");
-        sb.append("Columns: ").append(columns()).append("\n");
-        sb.append("Number of Rows: ").append(size()).append("\n");
-        return sb.toString();
-    }
+	@Override
+	public int degree() {
+		return this.columns().size();
+	}
 
-    // Helper method to create base directories if needed
-    private void createBaseDirectoriesIfNeeded() {
-        File baseDir = new File(BASE_DIRECTORIES);
-        if (!baseDir.exists()) {
-            baseDir.mkdirs();
-        }
-    }
+	@Override
+	public int size() {
+		int size = 0;
+		Element root = this.document.getRootElement();
+		if (root != null) {
+			Element rowsElement = root.element("rows");
+			for (Element row : rowsElement.elements()) {
+				size++;
+			}
+		}
+		return size;
+	}
 
-    // Helper method to initialize the document with columns and rows
-    private void initializeDocument(List<String> columns) {
-        document = DocumentHelper.createDocument();
-        Element tableElement = document.addElement("table");
-        Element columnsElement = tableElement.addElement("columns");
-        columns.forEach(column -> columnsElement.addElement("column").setText(column));
-        tableElement.addElement("rows");
+	@Override
+	public int hashCode() {
+		int hashSum = 0;
+		Element rows = this.document.getRootElement().element("rows");
+		for (Element rowElem : rows.elements()) {
+			String key = rowElem.attributeValue("key");
+			List<Object> fields = new ArrayList<>();
+			for (Element fieldElem : rowElem.elements()) {
+				fields.add(fieldtoObject(fieldElem));
+			}
+			Row newRow = new Row(key, fields);
+			hashSum += newRow.hashCode();
+		}
+		return hashSum;
+	}
 
-        flushToFile();
-    }
+	@Override
+	public boolean equals(Object obj) {
+		return obj instanceof Table && this.hashCode() == obj.hashCode();
+	}
 
-    // Helper method to initialize the document from an existing file
-    private void initializeDocumentFromExistingFile() {
-        try {
-            String xmlContent = Files.readString(Paths.get(path));
-            document = DocumentHelper.parseText(xmlContent);
-        } catch (DocumentException | IOException e) {
-            throw new IllegalStateException("Error reading XML file: " + e.getMessage());
-        }
-    }
+	@Override
+	public Iterator<Row> iterator() {
+		List<Row> rows = new ArrayList<>();
+		List<Element> elements = this.document.getRootElement().element("rows").elements();
+		for (Element rowElement : elements) {
+			String key = rowElement.attributeValue("key");
+			List<Object> fields = new ArrayList<>();
+			for (Element fieldElem : rowElement.elements()) {
+				fields.add(fieldtoObject(fieldElem));
+			}
+			rows.add(new Row(key, fields));
+		}
+		return rows.iterator();
+	}
 
-    // Helper method to flush the document to the file
-    private void flushToFile() {
-        try (FileWriter writer = new FileWriter(path)) {
-            OutputFormat format = OutputFormat.createPrettyPrint();
-            XMLWriter xmlWriter = new XMLWriter(writer, format);
-            xmlWriter.write(document);
-        } catch (IOException e) {
-            throw new IllegalStateException("Error writing XML file: " + e.getMessage());
-        }
-    }
+	@Override
+	public String name() {
+		String filename = flatFile.getFileName().toString();
+		int lastDotIndex = filename.lastIndexOf(".");
+		if (lastDotIndex > 0) {
+			return filename.substring(0, lastDotIndex);
+		} else {
+			return filename;
+		}
+	}
 
-    // Inner class representing a row (customize as needed)
-    public static class Row {
-        private final Element rowElement;
+	@Override
+	public List<String> columns() {
+		List<String> colList = new ArrayList<>();
+		Element root = this.document.getRootElement();
+		if (root != null) {
+			Element colElement = root.element("columns");
+			if (colElement != null) {
+				List<Element> colElements = colElement.elements("column");
+				for (Element element : colElements) {
+					colList.add(element.getText());
+				}
+			}
+		}
+		return colList;
+	}
 
-        public Row(Element rowElement) {
-            this.rowElement = rowElement;
-        }
+	@Override
+	public String toString() {
+		return toTabularView(false);
+	}
 
-        // Implement getters for specific columns (customize as needed)
-        public String getColumnValue(String columnName) {
-            Element columnElement = rowElement.element(columnName);
-            return columnElement != null ? columnElement.getText() : null;
-        }
-    }
+	private static Object fieldtoObject(Element fieldElement) {
+		switch (fieldElement.attributeValue("type")) {
+		case "java.lang.Integer":
+			return Integer.parseInt(fieldElement.getText());
+		case "java.lang.Double":
+			return Double.parseDouble(fieldElement.getText());
+		case "java.lang.Boolean":
+			return Boolean.parseBoolean(fieldElement.getText());
+		case "java.lang.String":
+			return fieldElement.getText().toString();
+		case "null":
+			return null;
+		default:
+			throw new IllegalArgumentException("field type is not recognized");
+		}
+	}
 }

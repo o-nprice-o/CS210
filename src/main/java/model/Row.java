@@ -15,12 +15,6 @@ public record Row(String key, List<Object> fields) implements Comparable<Row> {
         }
         return key + ": [" + sb.toString() + "]" ;
     }
-    
-    public Row {
-        if(fields != null) {
-            fields = Collections.unmodifiableList(fields != null ? List.copyOf(fields) : List.of());
-        }
-    }
 
     @Override
     public int compareTo(Row other) {
