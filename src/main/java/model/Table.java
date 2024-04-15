@@ -43,69 +43,54 @@ public interface Table extends Iterable<Row> {
 
 	@Override
 	public String toString();
+	
+	private void appendTableLine(StringBuilder builder, int repeat) {
+        builder.append("+");
+        for (int i = 0; i < repeat; i++) {
+            for (int j = 0; j < 10; j++) {
+                builder.append("--");
+            }
+        }
+        builder.append("+");
+        builder.append("\n");
+    }
 
 	public default String toTabularView(boolean sorted) {
-        StringBuilder sb = new StringBuilder();
-        sb.append(name()).append("\n");
+		StringBuilder tabularView = new StringBuilder();
+        List<Row> sortedRows = new ArrayList<>();
+        Iterator<Row> iterator = iterator();
+        String cellFormat = "| %-18s";
+        String numberFormat = "|%18s ";
+        int repeat = 10;
 
-        List<String> columns = columns();
-        int numColumns = columns.size();
-        int[] columnWidths = new int[numColumns];
+        while (iterator.hasNext()) {
+            sortedRows.add(iterator.next());
+        }
+        if (sortedRows.size() > 0) {
+            repeat = this.columns().size();
+        }
+        tabularView.append("/ " +this.name() + " \\" + System.lineSeparator());
 
-        // Calculate column widths
-        for (Row row : this) {
-            for (int i = 0; i < numColumns - 1; i++) {
-                Object field = row.fields().get(i);
-                columnWidths[i] = Math.max(columnWidths[i], field.toString().length());
+        appendTableLine(tabularView, repeat);
+
+        for (int i = 0; i < repeat; i++) {
+            tabularView.append(String.format(cellFormat, this.columns().get(i)));
+        }
+        tabularView.append("|\n");
+
+        appendTableLine(tabularView, repeat);
+
+        for (Row row : sortedRows) {
+            tabularView.append(String.format(cellFormat, row.key()));
+            for (Object field : row.fields()) {
+                tabularView.append(String.format(numberFormat, field));
             }
+            tabularView.append("|\n");
         }
 
-        // Print table header
-        for (int i = 0; i < numColumns; i++) {
-            sb.append("+").append("-".repeat(columnWidths[i] + 2));
-            if (i == numColumns - 1)
-                sb.append("+\n");
-        }
+        appendTableLine(tabularView, repeat);
 
-        // Print column names
-        sb.append("|");
-        for (int i = 0; i < numColumns; i++) {
-            String columnLabel = columns.get(i);
-            sb.append(" ").append(((columnLabel)));
-            sb.append(" |");
-        }
-        sb.append("\n");
-
-        // Print rows
-        List<Row> rows = new ArrayList<>();
-        for (Row row : this) {
-            rows.add(row);
-        }
-        if (sorted) {
-            Collections.sort(rows);
-        }
-        for (Row row : rows) {
-            sb.append("|");
-            for (int i = 0; i < numColumns - 1; i++) {
-                Object field = row.fields().get(i);
-                String fieldValue = field == null ? " " : field.toString();
-                if (fieldValue.length() > columnWidths[i]) {
-                    fieldValue = fieldValue.substring(0, columnWidths[i] - 3) + "...";
-                }
-                sb.append(" ").append((fieldValue).toString());
-                sb.append(" |");
-            }
-            sb.append("\n");
-        }
-
-        // Print table footer
-        for (int i = 0; i < numColumns; i++) {
-            sb.append("+").append("-".repeat(columnWidths[i] + 2));
-            if (i == numColumns - 1)
-                sb.append("+\n");
-        }
-
-        return sb.toString();
+        return tabularView.toString();
     }
 
 	
