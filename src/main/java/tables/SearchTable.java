@@ -4,7 +4,6 @@ package tables;
 import java.util.*;
 import model.DataTable;
 import model.Row;
-import model.Table;
 
 public class SearchTable implements DataTable {
 	private Row[] rows;

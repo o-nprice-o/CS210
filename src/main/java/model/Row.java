@@ -8,19 +8,19 @@ public record Row(String key, List<Object> fields) implements Comparable<Row> {
     public String toString() {
         StringBuilder sb = new StringBuilder();
         for(int i = 0; i < fields.size(); i++) {
-	        sb.append(fields.get(i).toString());
-	        if(i < fields.size() - 1) {
-		        sb.append(", ");
-	        }
+            sb.append(fields.get(i).toString());
+            if(i < fields.size() - 1) {
+                sb.append(", ");
+            }
         }
         return key + ": [" + sb.toString() + "]" ;
     }
     
-	public Row {
-		if(fields != null) {
-			fields = Collections.unmodifiableList(fields);
-		}
-	}
+    public Row {
+        if(fields != null) {
+            fields = Collections.unmodifiableList(fields != null ? List.copyOf(fields) : List.of());
+        }
+    }
 
     @Override
     public int compareTo(Row other) {
