@@ -10,6 +10,7 @@ import java.io.PrintStream;
 import java.lang.invoke.MethodType;
 import java.lang.reflect.Field;
 import java.lang.reflect.InvocationTargetException;
+import java.lang.reflect.Modifier;
 import java.math.BigInteger;
 import java.nio.file.Files;
 import java.util.Collections;
@@ -142,6 +143,9 @@ abstract class AbstractModule {
 			testing:
 			for (var field: fields) {
 				field.setAccessible(true);
+
+				if (Modifier.isVolatile(field.getModifiers()) && field.getName().startsWith("$"))
+					continue;
 
 				Object value;
 				try {
