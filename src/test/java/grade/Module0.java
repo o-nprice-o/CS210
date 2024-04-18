@@ -23,8 +23,9 @@ import org.junit.jupiter.api.parallel.ExecutionMode;
 final class Module0 extends AbstractModule {
 	@BeforeAll
 	void defineModule() {
-		battery = 100;
-		volume = 40;
+		containers = 3;
+		operations = 100;
+		elements = 40;
 	}
 
 	@Nested
@@ -87,17 +88,17 @@ final class Module0 extends AbstractModule {
 
 			control = new ControlTable();
 
-			return IntStream.range(0, battery).mapToObj(i -> {
+			return IntStream.range(0, operations).mapToObj(i -> {
 				if (i == 0)
 					return testName();
 				else if (i == 1)
 					return testColumns();
-				else if (i == 2 || i == battery-1)
+				else if (i == 2 || i == operations-1)
 					return testClear();
 				else {
-					if (control.size() < volume * .99)
+					if (control.size() < elements * .99)
 						return testPut(false, null);
-					else if (control.size() > volume * 1.01)
+					else if (control.size() > elements * 1.01)
 						return testRemove(true, null);
 					else if (RNG.nextBoolean())
 						return testGet(RNG.nextBoolean());
