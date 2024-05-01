@@ -10,6 +10,7 @@ import java.io.PrintStream;
 import java.lang.invoke.MethodType;
 import java.lang.reflect.Field;
 import java.lang.reflect.InvocationTargetException;
+import java.lang.reflect.Modifier;
 import java.math.BigInteger;
 import java.nio.file.Files;
 import java.util.Collections;
@@ -43,27 +44,35 @@ enum CapacityProperty {
 }
 
 abstract class AbstractModule {
-	int battery, volume;
-	int graded, earned;
+	int containers, operations, elements;
+	int runs, passes;
 
 	@BeforeAll
 	void startGrade() {
-		graded = 0;
-		earned = 0;
+		runs = 0;
+		passes = 0;
 	}
 
 	@AfterAll
 	void reportGrade(TestReporter reporter) {
+		var quota = containers * operations;
+		var skips = quota - runs;
+		var percent = (int) Math.ceil(passes / (double) quota * 100);
+
+		System.out.printf("Passes: %,5d\n", passes);
+		System.out.printf("Runs:   %,5d\n", runs);
+		if (skips > 0)
+			System.out.printf("Skips:  %,5d\n", skips);
+		System.out.println();
+
 		var module = this.getClass().getSimpleName();
 		var tag = "%s%s".formatted(module.charAt(0), module.charAt(module.length() - 1));
-		var pct = (int) Math.ceil(earned / (double) graded * 100);
 
-		System.out.printf("\n~~~ %s %d%% PASS RATE ~~~\n\n", tag, pct);
+		System.out.printf("~~~ %s %d%% PASS RATE ~~~\n", tag, percent);
 
-		reporter.publishEntry("moduleTag", tag);
-		reporter.publishEntry("passedUnitTests", String.valueOf(pct));
-
-		System.out.println();
+//		System.out.println();
+//		reporter.publishEntry("moduleTag", tag);
+//		reporter.publishEntry("passedUnitTests", String.valueOf(percent));
 	}
 
 	@TestInstance(Lifecycle.PER_CLASS)
@@ -74,26 +83,16 @@ abstract class AbstractModule {
 		Table subject;
 		ControlTable control;
 		Set<String> keyCache;
-		int hits, misses;
-		int passed;
+//		int hits, misses;
 
 		Random RNG;
 		PrintStream log;
 
-		@BeforeAll
-		void startStats() {
-			hits = 0;
-			misses = 0;
-			passed = 0;
-		}
-
-		@AfterAll
-		@ResourceLock(value = "graded")
-		@ResourceLock(value = "earned")
-		void accrueGrade() {
-			graded += battery;
-			earned += passed;
-		}
+//		@BeforeAll
+//		void startStats() {
+//			hits = 0;
+//			misses = 0;
+//		}
 
 		@BeforeAll
 		void defineRNG() {
@@ -133,8 +132,6 @@ abstract class AbstractModule {
 		}
 
 		void thenTestForbiddenClasses(Table table, List<String> exempt) {
-			var forbidden = new LinkedHashSet<String>();
-
 			var fields = new HashSet<Field>();
 			Collections.addAll(fields, table.getClass().getFields());
 			Collections.addAll(fields, table.getClass().getDeclaredFields());
@@ -143,13 +140,15 @@ abstract class AbstractModule {
 			for (var field: fields) {
 				field.setAccessible(true);
 
-				Object value;
+				if (Modifier.isVolatile(field.getModifiers()) && field.getName().startsWith("$"))
+					continue testing;
+
+				Object value = null;
 				try {
 					value = field.get(table);
 				}
 				catch (IllegalAccessException e) {
 					fail("Unable to access fields to test forbidden classes");
-					continue testing;
 				}
 
 				if (value == null)
@@ -175,22 +174,24 @@ abstract class AbstractModule {
 					catch (ClassNotFoundException e) {}
 				}
 
-				forbidden.add(type.getName());
-
-				field.setAccessible(false);
+				fail("Forbidden %s field named %s with %s value of type %s (review permitted fields)".formatted(
+					Modifier.isStatic(field.getModifiers()) ? "static" : "instance",
+					field.getName(),
+					Modifier.isFinal(field.getModifiers()) ? "constant" : "variable",
+					type.getName()
+				));
 			}
-
-			if (forbidden.size() == 1)
-				fail("Forbidden type %s in table field".formatted(forbidden.iterator().next()));
-			else if (forbidden.size() > 1)
-				fail("Forbidden types %s in table fields".formatted(String.join(", ", forbidden)));
 		}
 
+		@ResourceLock(value = "tested")
+		@ResourceLock(value = "passed")
 		DynamicTest testClear() {
 			var call = "clear()";
 			logCall(name, call);
 
 			return dynamicTest(call, () -> {
+				runs++;
+
 				control.clear();
 				keyCache.clear();
 
@@ -199,10 +200,12 @@ abstract class AbstractModule {
 				thenTestSize("clear");
 				thenTestFingerprint("clear");
 
-				passed++;
+				passes++;
 			});
 		}
 
+		@ResourceLock(value = "tested")
+		@ResourceLock(value = "passed")
 		DynamicTest testPut(boolean hitting, CapacityProperty property) {
 			var key = key(hitting);
 			var fields = fields();
@@ -211,10 +214,12 @@ abstract class AbstractModule {
 			if (1 + fields.size() == columns.size()) {
 				logCall(name, call);
 				return dynamicTest(title(call, key), () -> {
+					runs++;
+
 					var expected = control.put(key, fields);
 					var hit = expected != null;
-					if (hit) hits++;
-					else misses++;
+//					if (hit) hits++;
+//					else misses++;
 
 					if (hit)
 						keyCache.remove(key);
@@ -240,31 +245,37 @@ abstract class AbstractModule {
 					if (property != null)
 						thenTestCapacityProperty("put", property);
 
-					passed++;
+					passes++;
 				});
 			}
 			else {
 				logCommentedCall(name, call);
 				return dynamicTest(title(call, key), () -> {
+					runs++;
+
 					assertThrows(IllegalArgumentException.class, () -> {
 						subject.put(key, fields);
 					}, "Missing exception for fields with size %d (guard condition error likely)".formatted(fields.size()));
 
-					passed++;
+					passes++;
 				});
 			}
 		}
 
+		@ResourceLock(value = "tested")
+		@ResourceLock(value = "passed")
 		DynamicTest testGet(boolean hitting) {
 			var key = key(hitting);
 			var call = "get(%s)".formatted(encode(key));
 			logCall(name, call);
 
 			return dynamicTest(title(call, key), () -> {
+				runs++;
+
 				var expected = control.get(key);
 				var hit = expected != null;
-				if (hit) hits++;
-				else misses++;
+//				if (hit) hits++;
+//				else misses++;
 
 				var actual = subject.get(key);
 
@@ -284,20 +295,24 @@ abstract class AbstractModule {
 				if (control.size() > 0)
 					thenTestDegree("get");
 
-				passed++;
+				passes++;
 			});
 		}
 
+		@ResourceLock(value = "tested")
+		@ResourceLock(value = "passed")
 		DynamicTest testRemove(boolean hitting, CapacityProperty property) {
 			var key = key(hitting);
 			var call = "remove(%s)".formatted(encode(key));
 			logCall(name, call);
 
 			return dynamicTest(title(call, key), () -> {
+				runs++;
+
 				var expected = control.remove(key);
 				var hit = expected != null;
-				if (hit) hits++;
-				else misses++;
+//				if (hit) hits++;
+//				else misses++;
 
 				if (hit)
 					keyCache.remove(key);
@@ -322,7 +337,7 @@ abstract class AbstractModule {
 				if (property != null)
 					thenTestCapacityProperty("remove", property);
 
-				passed++;
+				passes++;
 			});
 		}
 
@@ -396,10 +411,14 @@ abstract class AbstractModule {
 
 		// Untested: equals
 
+		@ResourceLock(value = "tested")
+		@ResourceLock(value = "passed")
 		DynamicTest testIterator() {
 			var call = "iterator traversal";
 
 			return dynamicTest(title(call), () -> {
+				runs++;
+
 				var expected = control.size();
 
 				var actual = 0;
@@ -435,15 +454,19 @@ abstract class AbstractModule {
 					"Iterations off by %+d (hasNext/next errors likely)".formatted(actual - expected)
 				);
 
-				passed++;
+				passes++;
 			});
 		}
 
+		@ResourceLock(value = "tested")
+		@ResourceLock(value = "passed")
 		DynamicTest testName() {
 			var call = "name()";
 			logCall(name, call);
 
 			return dynamicTest(call, () -> {
+				runs++;
+
 				var expected = name;
 
 				var actual = subject.name();
@@ -454,15 +477,19 @@ abstract class AbstractModule {
 					"Mismatched name (assignment error likely)"
 				);
 
-				passed++;
+				passes++;
 			});
 		}
 
+		@ResourceLock(value = "tested")
+		@ResourceLock(value = "passed")
 		DynamicTest testColumns() {
 			var call = "columns()";
 			logCall(name, call);
 
 			return dynamicTest(call, () -> {
+				runs++;
+
 				var expected = columns;
 
 				var actual = subject.columns();
@@ -473,7 +500,7 @@ abstract class AbstractModule {
 					"Mismatched columns (assignment error likely)"
 				);
 
-				passed++;
+				passes++;
 			});
 		}
 
@@ -485,7 +512,7 @@ abstract class AbstractModule {
 //
 //		@AfterAll
 //		void auditHitRate() {
-//			System.err.println(hitRate());
+//			System.out.println(hitRate());
 //		}
 
 		String title(String call) {
@@ -672,7 +699,7 @@ abstract class AbstractModule {
 				Files.createDirectories(path.getParent());
 				log = new PrintStream(path.toFile());
 
-				System.out.println("Logging: " + path);
+//				System.out.println("Logging: " + path);
 			}
 			catch (IOException e) {
 				e.printStackTrace();

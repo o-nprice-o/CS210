@@ -4,7 +4,6 @@ import java.util.List;
 import java.util.stream.IntStream;
 import java.util.stream.Stream;
 
-import org.junit.jupiter.api.AfterAll;
 import org.junit.jupiter.api.BeforeAll;
 import org.junit.jupiter.api.ClassOrderer;
 import org.junit.jupiter.api.DisplayName;
@@ -18,7 +17,6 @@ import org.junit.jupiter.api.TestInstance.Lifecycle;
 import org.junit.jupiter.api.TestMethodOrder;
 import org.junit.jupiter.api.parallel.Execution;
 import org.junit.jupiter.api.parallel.ExecutionMode;
-import org.junit.jupiter.api.parallel.ResourceLock;
 
 @DisplayName("M5 JSON & XML Tables")
 @TestInstance(Lifecycle.PER_CLASS)
@@ -27,8 +25,9 @@ import org.junit.jupiter.api.parallel.ResourceLock;
 final class Module5 extends AbstractModule {
 	@BeforeAll
 	void defineModule() {
-		battery = 500;
-		volume = 250;
+		containers = 4;
+		operations = 250;
+		elements = 250;
 	}
 
 	@Nested
@@ -76,19 +75,19 @@ final class Module5 extends AbstractModule {
 
 			control = new ControlTable();
 
-			return IntStream.range(0, battery/2).mapToObj(i -> {
+			return IntStream.range(0, operations).mapToObj(i -> {
 				if (i == 0)
 					return testName();
 				else if (i == 1)
 					return testColumns();
 				else if (i == 2)
 					return testClear();
-				else if (i % 20 == 0 || i == battery/2-1)
+				else if (i % 20 == 0 || i == operations-1)
 					return testIterator();
 				else {
-					if (control.size() < volume * .99)
+					if (control.size() < elements * .99)
 						return testPut(false, null);
-					else if (control.size() > volume * 1.01)
+					else if (control.size() > elements * 1.01)
 						return testRemove(true, null);
 					else if (RNG.nextBoolean())
 						return testPut(RNG.nextBoolean(), null);
@@ -111,17 +110,17 @@ final class Module5 extends AbstractModule {
 				exempt
 			);
 
-			return IntStream.range(0, battery/2).mapToObj(i -> {
+			return IntStream.range(0, operations).mapToObj(i -> {
 				if (i == 0)
 					return testName();
 				else if (i == 1)
 					return testColumns();
-				else if (i == 2 || i % 20 == 0 || i == battery/2-1)
+				else if (i == 2 || i % 20 == 0 || i == operations-1)
 					return testIterator();
 				else {
-					if (control.size() < volume * .99)
+					if (control.size() < elements * .99)
 						return testPut(false, null);
-					else if (control.size() > volume * 1.01)
+					else if (control.size() > elements * 1.01)
 						return testRemove(true, null);
 					else
 						if (RNG.nextBoolean())
@@ -132,15 +131,6 @@ final class Module5 extends AbstractModule {
 						return testRemove(RNG.nextBoolean(), null);
 				}
 			});
-		}
-
-		@Override
-		@AfterAll
-		@ResourceLock(value = "graded")
-		@ResourceLock(value = "earned")
-		void accrueGrade() {
-			graded += battery;
-			earned += passed;
 		}
 	}
 
@@ -168,19 +158,19 @@ final class Module5 extends AbstractModule {
 
 			control = new ControlTable();
 
-			return IntStream.range(0, battery/2).mapToObj(i -> {
+			return IntStream.range(0, operations).mapToObj(i -> {
 				if (i == 0)
 					return testName();
 				else if (i == 1)
 					return testColumns();
 				else if (i == 2)
 					return testClear();
-				else if (i % 20 == 0 || i == battery/2-1)
+				else if (i % 20 == 0 || i == operations-1)
 					return testIterator();
 				else {
-					if (control.size() < volume * .99)
+					if (control.size() < elements * .99)
 						return testPut(false, null);
-					else if (control.size() > volume * 1.01)
+					else if (control.size() > elements * 1.01)
 						return testRemove(true, null);
 					else if (RNG.nextBoolean())
 						return testPut(RNG.nextBoolean(), null);
@@ -203,17 +193,17 @@ final class Module5 extends AbstractModule {
 				exempt
 			);
 
-			return IntStream.range(0, battery/2).mapToObj(i -> {
+			return IntStream.range(0, operations).mapToObj(i -> {
 				if (i == 0)
 					return testName();
 				else if (i == 1)
 					return testColumns();
-				else if (i == 2 || i % 20 == 0 || i == battery/2-1)
+				else if (i == 2 || i % 20 == 0 || i == operations-1)
 					return testIterator();
 				else {
-					if (control.size() < volume * .99)
+					if (control.size() < elements * .99)
 						return testPut(false, null);
-					else if (control.size() > volume * 1.01)
+					else if (control.size() > elements * 1.01)
 						return testRemove(true, null);
 					else
 						if (RNG.nextBoolean())
@@ -224,15 +214,6 @@ final class Module5 extends AbstractModule {
 						return testRemove(RNG.nextBoolean(), null);
 				}
 			});
-		}
-
-		@Override
-		@AfterAll
-		@ResourceLock(value = "graded")
-		@ResourceLock(value = "earned")
-		void accrueGrade() {
-			graded += battery;
-			earned += passed;
 		}
 	}
 }
