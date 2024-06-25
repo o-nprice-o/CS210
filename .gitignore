@@ -1,3 +1,4 @@
+<<<<<<< HEAD
 /db/
 
 # Created by https://www.toptal.com/developers/gitignore/api/java,maven,eclipse,intellij,visualstudiocode,macos
@@ -183,6 +184,8 @@ fabric.properties
 .idea/**/azureSettings.xml
 
 ### Java ###
+=======
+>>>>>>> 06081d1dddb7e27f30a02b2887c7e414c45ec4f7
 # Compiled class file
 *.class
 
@@ -207,6 +210,7 @@ fabric.properties
 # virtual machine crash logs, see http://www.java.com/en/download/help/error_hotspot.xml
 hs_err_pid*
 replay_pid*
+<<<<<<< HEAD
 
 ### macOS ###
 # General
@@ -280,3 +284,5 @@ buildNumber.properties
 .ionide
 
 # End of https://www.toptal.com/developers/gitignore/api/java,maven,eclipse,intellij,visualstudiocode,macos
+=======
+>>>>>>> 06081d1dddb7e27f30a02b2887c7e414c45ec4f7
